@@ -55,4 +55,4 @@ authenticator.canOpenUrl(_: application: options:) // call this from `applicatio
 
 ## License
 
-PovioKitAuth is available under the MIT license. See the [LICENSE](LICENSE) file for more info.
+PovioKitAuthFacebook is available under the MIT license. See the [LICENSE](LICENSE) file for more info.
