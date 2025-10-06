@@ -28,6 +28,10 @@
 - Select "Add Package" button and check `PovioKitAuthFacebook`.
 - Select "Add Package" again and you are done.
 
+## Setup
+
+Please read [official documentation](https://developers.facebook.com/docs/facebook-login/ios) from Facebook for all the details around the setup and integration.
+
 ## Usage
 
 ```swift

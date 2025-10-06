@@ -13,7 +13,7 @@ let package = Package(
   ],
   dependencies: [
     .package(url: "https://github.com/facebook/facebook-ios-sdk", .upToNextMajor(from: "18.0.0")),
-    .package(url: "https://github.com/povio/PovioKitAuth", branch: "separation")
+    .package(url: "https://github.com/povio/PovioKitAuth", .upToNextMajor(from: "3.0.0"))
   ],
   targets: [
     .target(
