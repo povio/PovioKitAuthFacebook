@@ -66,6 +66,18 @@ public extension FacebookAuthenticator {
 
 // MARK: - Private Methods
 private extension FacebookAuthenticator {
+  static func mapGraphCallbackError(result: Any?, error: Swift.Error?) -> Error? {
+    if let error {
+      return .system(error)
+    }
+
+    if result == nil {
+      return .missingUserData
+    }
+
+    return nil
+  }
+
   func signIn(with permissions: [String], on presentingViewController: UIViewController) async throws -> AccessToken {
     try await withCheckedThrowingContinuation { continuation in
       provider.logIn(permissions: permissions, from: presentingViewController) { result, error in
@@ -98,32 +110,37 @@ private extension FacebookAuthenticator {
       )
 
       request.start { _, result, error in
-        switch result {
-        case .some(let response):
-          let decoder = JSONDecoder()
-          decoder.keyDecodingStrategy = .convertFromSnakeCase
-          
-          do {
-            let data = try JSONSerialization.data(withJSONObject: response, options: [])
-            let object = try decoder.decode(GraphResponse.self, from: data)
+        if let mappedError = Self.mapGraphCallbackError(result: result, error: error) {
+          continuation.resume(throwing: mappedError)
+          return
+        }
 
-            var nameComponents = PersonNameComponents()
-            nameComponents.givenName = object.firstName
-            nameComponents.familyName = object.lastName
-            
-            let authResponse = Response(
-              userId: object.id,
-              token: token.tokenString,
-              nameComponents: nameComponents,
-              email: object.email,
-              expiresAt: token.expirationDate
-            )
-            continuation.resume(returning: authResponse)
-          } catch {
-            continuation.resume(throwing: Error.userDataDecode)
-          }
-        case .none:
+        guard let response = result else {
           continuation.resume(throwing: Error.missingUserData)
+          return
+        }
+
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        
+        do {
+          let data = try JSONSerialization.data(withJSONObject: response, options: [])
+          let object = try decoder.decode(GraphResponse.self, from: data)
+
+          var nameComponents = PersonNameComponents()
+          nameComponents.givenName = object.firstName
+          nameComponents.familyName = object.lastName
+          
+          let authResponse = Response(
+            userId: object.id,
+            token: token.tokenString,
+            nameComponents: nameComponents,
+            email: object.email,
+            expiresAt: token.expirationDate
+          )
+          continuation.resume(returning: authResponse)
+        } catch {
+          continuation.resume(throwing: Error.userDataDecode)
         }
       }
     }
