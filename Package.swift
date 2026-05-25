@@ -23,7 +23,7 @@ let package = Package(
         .product(name: "FacebookLogin", package: "facebook-ios-sdk")
       ],
       path: "Sources",
-      resources: [.copy("../Resources/PrivacyInfo.xcprivacy")]
+      resources: [.copy("Resources/PrivacyInfo.xcprivacy")]
     ),
     .testTarget(
       name: "PovioKitAuthFacebookTests",

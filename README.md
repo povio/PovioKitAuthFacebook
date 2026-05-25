@@ -10,7 +10,7 @@
         <img src="https://img.shields.io/badge/Swift-5-orange.svg" />
     </a>
     <a href="./LICENSE" alt="License">
-        <img src="https://img.shields.io/badge/Licence-MIT-red.svg" />
+        <img src="https://img.shields.io/badge/License-MIT-red.svg" />
     </a>
 </p>
 
@@ -18,6 +18,13 @@
     Welcome to <b>PovioKitAuthFacebook</b>.
     <br />An auth provider for social login with Facebook.
 </p>
+
+## Requirements
+
+- iOS 16.0+
+- Swift 5.9+
+- Xcode 15+
+- A Facebook App ID and Client Token (configured in the [Meta for Developers](https://developers.facebook.com) console)
 
 ## Installation
 
@@ -30,7 +37,78 @@
 
 ## Setup
 
-Please read [official documentation](https://developers.facebook.com/docs/facebook-login/ios) from Facebook for all the details around the setup and integration.
+For the full picture, read the [official Facebook documentation](https://developers.facebook.com/docs/facebook-login/ios). The minimum required steps are summarised below.
+
+### 1. Configure `Info.plist`
+
+Add the following keys (replace `<APP_ID>`, `<CLIENT_TOKEN>`, and `<APP_NAME>` with your values):
+
+```xml
+<key>FacebookAppID</key>
+<string><APP_ID></string>
+<key>FacebookClientToken</key>
+<string><CLIENT_TOKEN></string>
+<key>FacebookDisplayName</key>
+<string><APP_NAME></string>
+
+<key>CFBundleURLTypes</key>
+<array>
+    <dict>
+        <key>CFBundleURLSchemes</key>
+        <array>
+            <string>fb<APP_ID></string>
+        </array>
+    </dict>
+</array>
+
+<key>LSApplicationQueriesSchemes</key>
+<array>
+    <string>fbapi</string>
+    <string>fb-messenger-share-api</string>
+</array>
+```
+
+### 2. Initialise the Facebook SDK at launch
+
+#### UIKit (`AppDelegate`)
+
+```swift
+import FBSDKCoreKit
+
+func application(
+  _ application: UIApplication,
+  didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+) -> Bool {
+  ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
+  return true
+}
+```
+
+#### SwiftUI app lifecycle
+
+```swift
+import SwiftUI
+import FBSDKCoreKit
+
+@main
+struct MyApp: App {
+  @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+  
+  var body: some Scene {
+    WindowGroup { ContentView() }
+  }
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+  func application(
+    _ application: UIApplication,
+    didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+  ) -> Bool {
+    ApplicationDelegate.shared.application(application, didFinishLaunchingWithOptions: launchOptions)
+    return true
+  }
+}
+```
 
 ## Usage
 
@@ -38,24 +116,69 @@ Please read [official documentation](https://developers.facebook.com/docs/facebo
 // initialization
 let authenticator = FacebookAuthenticator()
 
-// signIn user with default permissions
+// signIn user with default permissions ([.email, .publicProfile])
 let result = try await authenticator
   .signIn(from: <view-controller-instance>)
 
-// signIn user with custom permissions  
+// signIn user with custom permissions
 let result = try await authenticator
-  .signIn(from: <view-controller-instance>, with: [<array-of-custom-permissions>])
+  .signIn(from: <view-controller-instance>, with: [.email, .userBirthday])
+
+// build "defaults + extras" without hard-coding them
+let permissions = FacebookAuthenticator.defaultPermissions + [.userFriends]
+let result = try await authenticator
+  .signIn(from: <view-controller-instance>, with: permissions)
+
+// refresh the access token (and re-fetch user details)
+let refreshed = try await authenticator.refreshTokenIfNeeded()
 
 // get authentication status
 let state = authenticator.isAuthenticated
 
-// signOut user
-authenticator.signOut() // all provider data regarding the use auth is cleared at this point
+// signOut user (local only — does NOT revoke server-side permissions)
+authenticator.signOut()
 
-// handle url
-authenticator.canOpenUrl(_: application: options:) // call this from `application:openURL:options:` in UIApplicationDelegate
+// fully revoke permissions on Facebook's servers, then signOut locally
+try await authenticator.revokePermissions()
 ```
 
+> The `FacebookPermission` typealias is exposed by this package so you don't need to `import FacebookLogin` to use `.email`, `.publicProfile`, `.userBirthday`, etc.
+
+### Handling the OAuth return URL
+
+#### UIKit (`UIApplicationDelegate`)
+
+```swift
+func application(
+  _ application: UIApplication,
+  open url: URL,
+  options: [UIApplication.OpenURLOptionsKey: Any] = [:]
+) -> Bool {
+  authenticator.canOpenUrl(url, application: application, options: options)
+}
+```
+
+#### SwiftUI (`.onOpenURL`)
+
+```swift
+ContentView()
+  .onOpenURL { url in
+    _ = authenticator.canOpenUrl(url, application: .shared, options: [:])
+  }
+```
+
+#### UIKit Scene-based apps (`UISceneDelegate`)
+
+```swift
+func scene(_ scene: UIScene, openURLContexts URLContexts: Set<UIOpenURLContext>) {
+  guard let context = URLContexts.first else { return }
+  _ = authenticator.canOpenUrl(
+    context.url,
+    application: .shared,
+    options: [.sourceApplication: context.options.sourceApplication as Any]
+  )
+}
+```
 
 ## License
 
